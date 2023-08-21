@@ -25,6 +25,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:showcaseview/src/tooltip_widget_below_target.dart';
 
 import 'enum.dart';
 import 'extension.dart';
@@ -244,6 +245,18 @@ class Showcase extends StatefulWidget {
   /// will still provide a callback.
   final VoidCallback? onBarrierClick;
 
+  /// Tooltip widget to appear below target user.
+  /// To be used with [Showcase.withWidget]
+  final Widget? widgetBelowTarget;
+
+  /// Offset to change the position of tooltip below target
+  final Offset? translateWidgetBelowTargetOffset;
+
+  /// Can be used for certain widgets that are not highlighted when
+  /// tooltip widget is used under target
+  final bool applyBgToTarget;
+  final Color? targetBgColor;
+
   const Showcase({
     required this.key,
     required this.description,
@@ -291,6 +304,10 @@ class Showcase extends StatefulWidget {
   })  : height = null,
         width = null,
         container = null,
+        widgetBelowTarget = null,
+        applyBgToTarget = false,
+        targetBgColor = null,
+        translateWidgetBelowTargetOffset = null,
         assert(overlayOpacity >= 0.0 && overlayOpacity <= 1.0,
             "overlay opacity must be between 0 and 1."),
         assert(onTargetClick == null || disposeOnTap != null,
@@ -304,6 +321,7 @@ class Showcase extends StatefulWidget {
     required this.width,
     required this.container,
     required this.child,
+    this.targetBgColor,
     this.targetShapeBorder = const RoundedRectangleBorder(
       borderRadius: BorderRadius.all(
         Radius.circular(8),
@@ -325,6 +343,9 @@ class Showcase extends StatefulWidget {
     this.disableDefaultTargetGestures = false,
     this.tooltipPosition,
     this.onBarrierClick,
+    this.widgetBelowTarget,
+    this.translateWidgetBelowTargetOffset,
+    this.applyBgToTarget = false,
   })  : showArrow = false,
         onToolTipClick = null,
         scaleAnimationDuration = const Duration(milliseconds: 300),
@@ -529,16 +550,27 @@ class _ShowcaseState extends State<Showcase> {
           ),
         ),
         if (_isScrollRunning) Center(child: widget.scrollLoadingWidget),
+        // Add a custom widget below Target Widget
+        if (widget.widgetBelowTarget != null)
+          TooltipWidgetBelowTarget(
+            onTooltipTap: _getOnTooltipTap,
+            position: position,
+            translateOffset: widget.translateWidgetBelowTargetOffset,
+            child: widget.widgetBelowTarget,
+          ),
         if (!_isScrollRunning) ...[
           _TargetWidget(
             offset: offset,
             size: size,
             onTap: _getOnTargetTap,
+            targetBgColor: widget.targetBgColor,
             radius: widget.targetBorderRadius,
             onDoubleTap: widget.onTargetDoubleTap,
             onLongPress: widget.onTargetLongPress,
             shapeBorder: widget.targetShapeBorder,
             disableDefaultChildGestures: widget.disableDefaultTargetGestures,
+            target: widget.child,
+            applyBgToTarget: widget.applyBgToTarget,
           ),
           ToolTipWidget(
             position: position,
@@ -589,6 +621,9 @@ class _TargetWidget extends StatelessWidget {
   final ShapeBorder? shapeBorder;
   final BorderRadius? radius;
   final bool disableDefaultChildGestures;
+  final Widget? target;
+  final bool applyBgToTarget;
+  final Color? targetBgColor;
 
   const _TargetWidget({
     Key? key,
@@ -600,6 +635,9 @@ class _TargetWidget extends StatelessWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.disableDefaultChildGestures = false,
+    this.target,
+    this.applyBgToTarget = false,
+    this.targetBgColor,
   }) : super(key: key);
 
   @override
@@ -632,6 +670,23 @@ class _TargetWidget extends StatelessWidget {
                     const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.circular(8)),
                     ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                decoration: applyBgToTarget
+                    ? BoxDecoration(
+                        color: targetBgColor ?? Colors.black,
+                        shape: BoxShape.circle,
+                      )
+                    : const BoxDecoration(),
+                padding: const EdgeInsets.all(8),
+                child: IgnorePointer(
+                  child: target ?? const SizedBox.shrink(),
+                ),
+              ),
+            ],
           ),
         ),
       ),
